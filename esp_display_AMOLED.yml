@@ -44,6 +44,12 @@ binary_sensor:
     id: lamp_status
     entity_id: switch.smart_power_strip_socket_1
 
+switch:
+  - platform: gpio
+    name: "Ext Fan"
+    pin: GPIO37  # Change to your chosen GPIO
+    id: ext_fan
+
 # SHT31 sensor
 sensor:
   - platform: sht3xd

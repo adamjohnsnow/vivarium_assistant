@@ -1,0 +1,107 @@
+esphome:
+  name: vivsensor320
+  friendly_name: VivariumII
+  min_version: 2025.5.0
+  name_add_mac_suffix: false
+  platformio_options:
+    board_build.flash_size: 16MB
+
+esp32:
+  board: esp32-s3-devkitc-1
+  framework:
+    type: esp-idf
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: "6b/aM1kv5AO7QxCHrUNSwmBTTMHqumrld3cIjFkHsgg="
+
+ota:
+  - platform: esphome
+    password: "45729663d51cd36a476d62ffa87f19ff"
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Viv3 Fallback Hotspot"
+    password: "FqYYZgJOn9Mg"
+
+captive_portal:
+
+spi:
+  clk_pin: GPIO39
+  mosi_pin: GPIO38
+  
+sensor:
+  - platform: homeassistant
+    id: dimmer_percent
+    entity_id: input_number.vivarium_dimmer_percent
+  - platform: homeassistant
+    id: ext_temp
+    entity_id: sensor.esphome_web_e86508_vivarium_temperature
+  - platform: homeassistant
+    id: ext_hum
+    entity_id: sensor.esphome_web_e86508_vivarium_humidity
+
+display:
+  - platform: st7789v
+    id: my_display
+    model: CUSTOM
+    width: 240
+    height: 320
+    offset_height: 0
+    offset_width: 0
+    cs_pin: 45
+    dc_pin: 42
+    reset_pin: 0
+    backlight_pin: 1
+    rotation: 0
+    lambda: |-
+      // CHINO's PLACE (top)
+      it.printf(12, 2, id(font_header), Color(255,255,255), "VIVARIUM");
+
+      // TEMP label (upper)
+      it.printf(20, 60, id(font_medium), Color(255,255,255), "TEMP");
+
+      // SHT31 Temperature (conditional color)
+      if (id(ext_temp).state >= 24 && id(ext_temp).state <= 35) {
+        it.printf(20, 80, id(font_large), Color(0,200,0), "%.1f", id(ext_temp).state);
+      } else {
+        it.printf(20, 80, id(font_large), Color(220,40,40), "%.1f", id(ext_temp).state);
+      }
+      it.printf(120, 90, id(font_medium), Color(255,255,255), "°C");
+
+      // LAMP PERCENT (yellow)
+      it.printf(20, 140, id(font_medium), Color(255,220,40), "LAMP %d%%", (int)id(dimmer_percent).state);
+
+      // Humidity label (lower)
+      it.printf(20, 175, id(font_medium), Color(255,255,255), "HUMIDITY");
+      // SHT31 Humidity
+      it.printf(20, 195, id(font_large), Color(220,40,40), "%.1f", id(ext_hum).state);
+      it.printf(120, 205, id(font_medium), Color(255,255,255), "%%");
+
+      // FOG ON (yellow)
+      it.printf(20, 255, id(font_medium), Color(255,220,40), "FOG ON");
+
+      // Home Assistant offline warning
+      if (!api_is_connected()) {
+        it.printf(10, 300, id(font_medium), Color(255,40,40), "HA OFFLINE!");
+      }
+
+# Fonts
+font:
+  - file: "gfonts://Roboto"
+    id: font_medium
+    size: 18
+  - file: "gfonts://Roboto"
+    id: font_large
+    size: 52
+  - file: "gfonts://Roboto"
+    id: font_header
+    size: 45
