@@ -1,163 +1,258 @@
-# Waveshare ESP32-S3 AMOLED 1.91" with Home Assistant Integration
+# Vivarium Assistant - ESP32-S3 AMOLED Environmental Monitor
+
+A comprehensive environmental monitoring system for vivariums using ESP32-S3 with AMOLED display and multiple sensors.
+
+## 🔧 Hardware Components
+
+### Main Components
+
+- **ESP32-S3 DevKit-C-1** - Main microcontroller with WiFi
+- **RM67162 AMOLED Display** - 240x400px color display
+- **SHT31 Temperature/Humidity Sensor** - I2C environmental sensor
+- **ML8511 UV Sensor** - Analog UV light measurement
+- **2x DS18B20 Temperature Sensors** - OneWire waterproof probes
+- **10kΩ Resistor** - Pull-up resistor for OneWire bus
+- **External Fan Control** - GPIO-controlled relay/MOSFET
+
+### Power Requirements
+
+- **Input:** 5V USB or external power supply
+- **Operating:** 3.3V (regulated on ESP32-S3 board)
+- **Current:** ~200-500mA (depending on display brightness and sensors)
+
+## 📡 Pin Connections
+
+| Component                       | ESP32-S3 Pin  | Function          | Notes                   |
+| ------------------------------- | ------------- | ----------------- | ----------------------- |
+| **AMOLED Display (RM67162)**    |               |                   |                         |
+| CS                              | GPIO6         | Chip Select       | SPI                     |
+| Reset                           | GPIO17        | Hardware Reset    | Active Low              |
+| Enable                          | GPIO38        | Display Enable    | Backlight Control       |
+| CLK                             | GPIO47        | SPI Clock         | Quad SPI                |
+| Data[0]                         | GPIO18        | SPI Data 0        | QSPI                    |
+| Data[1]                         | GPIO7         | SPI Data 1        | QSPI                    |
+| Data[2]                         | GPIO48        | SPI Data 2        | QSPI                    |
+| Data[3]                         | GPIO5         | SPI Data 3        | QSPI                    |
+| **SHT31 Sensor**                |               |                   |                         |
+| SDA                             | GPIO13        | I2C Data          | Pull-up required        |
+| SCL                             | GPIO14        | I2C Clock         | Pull-up required        |
+| VCC                             | 3.3V          | Power             |                         |
+| GND                             | GND           | Ground            |                         |
+| **ML8511 UV Sensor**            |               |                   |                         |
+| OUT                             | GPIO10        | Analog Output     | ADC input               |
+| VCC                             | 3.3V          | Power             |                         |
+| GND                             | GND           | Ground            |                         |
+| EN                              | 3.3V          | Enable (optional) | Always enabled          |
+| **DS18B20 Temperature Sensors** |               |                   |                         |
+| Data                            | GPIO11        | OneWire Data      | Requires 10kΩ pull-up   |
+| VCC                             | 3.3V          | Power             | Can use parasitic power |
+| GND                             | GND           | Ground            |                         |
+| **External Fan**                |               |                   |                         |
+| Control                         | GPIO21        | Digital Output    | Drive relay/MOSFET      |
+| **Pull-up Resistor**            |               |                   |                         |
+| 10kΩ                            | GPIO11 ↔ 3.3V | OneWire Pull-up   | Essential for DS18B20   |
+
+## 🔌 Connector Types
+
+### Power Connectors
+
+- **USB-C** - Programming and power (ESP32-S3 DevKit)
+- **External Power** - Optional 5V barrel jack or terminal block
+
+### Sensor Connectors
+
+- **JST-XH 2.54mm** - Recommended for removable sensors
+- **Terminal Blocks** - Screw terminals for permanent connections
+- **DuPont Connectors** - 2.54mm pitch for breadboard prototyping
+
+### Waterproof Connections (for vivarium use)
+
+- **DS18B20 Probes** - Often come with 3-wire cable and connector
+- **IP65 Cable Glands** - For sensor wires entering enclosure
+
+## 📦 Bill of Materials (BOM)
+
+| Qty | Component                  | Part Number/Specs           | Estimated Cost |
+| --- | -------------------------- | --------------------------- | -------------- |
+| 1   | ESP32-S3 DevKit-C-1        | ESP32-S3-DevKitC-1-N8R8     | $15-20         |
+| 1   | RM67162 AMOLED Display     | 240x400px QSPI              | $25-35         |
+| 1   | SHT31 Sensor               | SHT31-DIS-B                 | $8-12          |
+| 1   | ML8511 UV Sensor           | ML8511 Breakout             | $5-8           |
+| 2   | DS18B20 Temperature Sensor | Waterproof probes           | $3-5 each      |
+| 1   | 10kΩ Resistor              | 1/4W 5% tolerance           | $0.10          |
+| 1   | PCB/Perfboard              | Custom or prototype board   | $5-15          |
+| 1   | Enclosure                  | IP65 rated for vivarium use | $10-20         |
+|     | Connectors & Wire          | JST, terminals, etc.        | $5-10          |
+|     | **Total**                  |                             | **~$80-130**   |
 
 ## Step-by-Step Setup Instructions
 
-### 1. Install Arduino IDE and Libraries
+### 1. Install ESPHome
 
-1. **Install Arduino IDE 2.x** from https://www.arduino.cc/en/software
+1. **Install ESPHome** via Home Assistant Add-on Store or standalone:
 
-2. **Add ESP32 Board Support:**
+   - Home Assistant → Add-ons → ESPHome
+   - Or install via pip: `pip install esphome`
 
-   - File → Preferences
-   - Add to "Additional Board Manager URLs":
-     ```
-     https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
-     ```
-   - Tools → Board → Boards Manager → Search "ESP32" → Install "ESP32 by Espressif Systems"
+2. **Create New Device:**
+   - ESPHome Dashboard → New Device
+   - Choose ESP32-S3 as the platform
+   - Set device name (e.g., "vivarium-monitor")
 
-3. **Install Required Libraries:**
-   - Tools → Manage Libraries
-   - Install these libraries:
-     - `PubSubClient` by Nick O'Leary
-     - `ArduinoJson` by Benoit Blanchon
-     - `WiFi` (included with ESP32)
+### 2. Hardware Assembly
 
-### 2. Download Complete Display Drivers
+1. **Connect all sensors** according to the pin connection table above
+2. **Install 10kΩ pull-up resistor** between GPIO11 and 3.3V for DS18B20 sensors
+3. **Test connections** with multimeter before powering on
 
-**IMPORTANT:** The files I created are basic implementations. For full functionality, you need to download the complete drivers from the GitHub repository:
+### 3. ESPHome Configuration
 
-1. Go to: https://github.com/EDISON-SCIENCE-CORNER/WAVESHARE-1.9-AMOLED/tree/main/RGB%20LED%20CONTROLLER
-2. Download these files and replace the basic versions:
-   - `rm67162.h`
-   - `rm67162.cpp`
-   - `FT3168.h`
-   - `FT3168.cpp`
-   - `Display.h`
-   - Font files (\*.h)
+1. **Copy the configuration** from `sandbox.yml`
+2. **Update WiFi credentials** in your secrets file
+3. **Find DS18B20 addresses:**
+   - Comment out DS18B20 sensors initially
+   - Upload and check logs for device addresses
+   - Update configuration with real addresses
 
-### 3. Configure the Sketch
+### 4. Upload Firmware
 
-1. **Open the sketch:** `amoled_homeassistant.ino`
+1. **Connect ESP32-S3** via USB
+2. **Compile and upload** through ESPHome dashboard
+3. **Monitor logs** for successful sensor detection
 
-2. **Update WiFi credentials:**
+### 5. Testing & Troubleshooting
 
-   ```cpp
-   const char* ssid = "YOUR_WIFI_SSID";
-   const char* password = "YOUR_WIFI_PASSWORD";
-   ```
+1. **Check ESPHome logs** for sensor readings and connectivity
+2. **Verify Home Assistant integration** - entities should appear automatically
+3. **Test display functionality** - should show live sensor data
+4. **Common issues:**
+   - **No DS18B20 detected?** Check 10kΩ pull-up resistor and wiring
+   - **Display not working?** Verify SPI connections and power
+   - **WiFi issues?** Check credentials in secrets.yaml
+   - **Compilation errors?** Ensure ESPHome version compatibility
 
-3. **Update MQTT settings:**
-   ```cpp
-   const char* mqtt_server = "192.168.1.100";  // Your Home Assistant IP
-   const int mqtt_port = 1883;
-   const char* mqtt_user = "your_mqtt_user";
-   const char* mqtt_password = "your_mqtt_password";
-   ```
+### 6. Customization
 
-### 4. Upload to ESP32-S3
+- Modify display layout and colors in the lambda section
+- Add temperature thresholds and alerts
+- Integrate additional sensors or controls
+- Create Home Assistant automations based on sensor data
 
-1. **Select Board:**
+## 🏠 Home Assistant Integration
 
-   - Tools → Board → ESP32 Arduino → ESP32S3 Dev Module
+This project uses **ESPHome** for seamless Home Assistant integration. The configuration includes:
 
-2. **Configure Board Settings:**
+### Sensors
 
-   - CPU Frequency: 240MHz
-   - Flash Size: 4MB (or 16MB if you have that version)
-   - Partition Scheme: Default 4MB with spiffs
-   - PSRAM: Enabled
+- **Vivarium Temperature** - SHT31 main air temperature
+- **Vivarium Humidity** - SHT31 humidity sensor
+- **Water Temperature** - DS18B20 probe (0xe28a447c1f64ff28)
+- **Substrate Temperature** - DS18B20 probe (0x74057c7c1f64ff28)
+- **UV Level** - ML8511 UV index sensor
 
-3. **Connect your ESP32-S3** via USB and select the correct port
+### Controls
 
-4. **Upload the sketch**
+- **External Fan** - GPIO21 controlled ventilation fan
+- **Lamp Status** - Home Assistant entity monitoring
 
-### 5. Home Assistant Configuration
+### Display Features
 
-Add this to your `configuration.yaml`:
+- **Real-time monitoring** - Live sensor data on AMOLED screen
+- **Color-coded alerts** - Green/red indicators for optimal ranges
+- **Status indicators** - Fan, lamp, and system status
+
+## 📊 Sensor Specifications
+
+| Sensor            | Range           | Accuracy    | Update Rate |
+| ----------------- | --------------- | ----------- | ----------- |
+| SHT31 Temperature | -40°C to +125°C | ±0.3°C      | 1 second    |
+| SHT31 Humidity    | 0-100% RH       | ±2% RH      | 1 second    |
+| DS18B20 Water     | -55°C to +125°C | ±0.5°C      | 60 seconds  |
+| DS18B20 Substrate | -55°C to +125°C | ±0.5°C      | 60 seconds  |
+| ML8511 UV         | 280-390nm       | ±1 UV Index | 2 seconds   |
+
+## 🔧 ESPHome Configuration
+
+The main configuration file `sandbox.yml` includes:
 
 ```yaml
-mqtt:
-  sensor:
-    - name: "AMOLED Display Status"
-      state_topic: "homeassistant/amoled/status"
-      value_template: "{{ value_json.status }}"
-      json_attributes_topic: "homeassistant/amoled/status"
-
-    - name: "AMOLED Touch Events"
-      state_topic: "homeassistant/amoled/touch"
-      value_template: "{{ value_json.button }}"
-      json_attributes_topic: "homeassistant/amoled/touch"
-
-  light:
-    - name: "AMOLED Display"
-      command_topic: "homeassistant/amoled/command"
-      brightness_command_topic: "homeassistant/amoled/brightness"
-      brightness_scale: 255
-      payload_on: "toggle"
-      payload_off: "toggle"
-
-  text:
-    - name: "AMOLED Display Text"
-      command_topic: "homeassistant/amoled/text"
-      initial: "Home Assistant"
+# Key sensor addresses (update these for your hardware)
+sensor:
+  - platform: dallas_temp
+    address: 0xe28a447c1f64ff28 # Water temperature probe
+  - platform: dallas_temp
+    address: 0x74057c7c1f64ff28 # Substrate temperature probe
 ```
 
-### 6. Testing
+### Finding Your DS18B20 Addresses
 
-1. **Monitor Serial Output** to see connection status and debug info
-2. **Check Home Assistant** for the new entities
-3. **Test touch buttons** on the display
-4. **Send commands** from Home Assistant to control the display
+1. Upload the configuration with sensors commented out
+2. Check ESPHome logs for: `Found DS18B20 device with address: 0x...`
+3. Update the addresses in your configuration
+4. Re-upload the firmware
 
-### 7. Troubleshooting
+## Hardware Connections (ESPHome Configuration)
 
-- **Display not working?** Make sure you have the complete rm67162.cpp from GitHub
-- **Touch not responding?** Check I2C connections and addresses
-- **MQTT issues?** Verify broker settings and credentials
-- **Compilation errors?** Ensure all libraries are installed and Arduino includes are present
-- **String conversion errors?** Use `.toString()` for IP addresses and `String()` for integers
-
-### 8. Customization
-
-- Modify button layouts in the `buttons[]` array
-- Add more MQTT topics for additional sensors
-- Customize display graphics and fonts
-- Add more touch gestures and interactions
-
-## Hardware Connections
-
-The pin configuration is defined in `pins_config.h`:
+**Display (QSPI DBI):**
 
 ```
-Display SPI:
-- MOSI: GPIO18
-- SCLK: GPIO47
-- CS: GPIO6
-- DC: GPIO7
-- RST: GPIO17
-- BL: GPIO38
+CS: GPIO6
+Reset: GPIO17
+Enable: GPIO38
+CLK: GPIO47
+Data Pins: [GPIO18, GPIO7, GPIO48, GPIO5]
+```
 
-Touch I2C:
-- SDA: GPIO15
-- SCL: GPIO16
-- INT: GPIO1
-- RST: GPIO14
+**I2C Sensors:**
+
+```
+SDA: GPIO13 (SHT31)
+SCL: GPIO14 (SHT31)
+```
+
+**OneWire Temperature:**
+
+```
+Data: GPIO11 (DS18B20 sensors with 10kΩ pull-up)
+```
+
+**Analog/Digital:**
+
+```
+UV Sensor: GPIO10 (ADC)
+Fan Control: GPIO21 (Digital Output)
 ```
 
 ## Features
 
-✅ WiFi connectivity  
-✅ MQTT communication with Home Assistant  
-✅ Touch screen interface with buttons  
-✅ Brightness control  
-✅ Text display from Home Assistant  
-✅ Status reporting  
-✅ Touch event publishing
+✅ **ESPHome Integration** - Direct Home Assistant connectivity  
+✅ **WiFi Connectivity** - Wireless sensor monitoring  
+✅ **Multi-Sensor Monitoring** - Temperature, humidity, UV levels  
+✅ **AMOLED Display** - High-contrast color display with live data  
+✅ **Color-Coded Alerts** - Visual indicators for optimal conditions  
+✅ **Automatic Discovery** - Sensors appear in Home Assistant automatically  
+✅ **Real-time Updates** - Live environmental data  
+✅ **Fan Control** - GPIO-controlled ventilation
+
+## Vivarium Monitoring Features
+
+### Temperature Zones
+
+- **Main Air Temperature** (SHT31) - Overall vivarium climate
+- **Water Temperature** (DS18B20) - Critical for aquatic sections
+- **Substrate Temperature** (DS18B20) - Important for plant health
+
+### Environmental Controls
+
+- **Humidity Monitoring** - Maintain optimal moisture levels
+- **UV Level Detection** - Monitor lighting conditions
+- **Fan Control** - Automated ventilation based on conditions
+- **Lamp Status** - Integration with Home Assistant lighting
 
 ## Next Steps
 
-1. Get the complete display drivers from GitHub
-2. Test basic functionality first
-3. Add your specific sensors and features
-4. Create custom Home Assistant dashboards
-5. Add more sophisticated graphics and animations
+1. **Build the hardware** following the pin connection guide
+2. **Test basic functionality** with simple ESPHome config
+3. **Add your specific sensors** and calibrate readings
+4. **Create Home Assistant automations** for environmental control
+5. **Mount in weatherproof enclosure** for vivarium use

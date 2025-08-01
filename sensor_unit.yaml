@@ -1,0 +1,81 @@
+esphome:
+  name: vivariumsensors
+  friendly_name: VivariumSensors
+
+esp32:
+  board: esp32dev
+  framework:
+    type: arduino
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: "L8wfIiXhgmY7rRYPbG+Ip0+KX9jWlVcGJDsZ1wiKN10="
+
+ota:
+  - platform: esphome
+    password: "0bea80570091d29a084423559fa413d6"
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Vivariumsensors Fallback Hotspot"
+    password: "HUZE4QveKxoZ"
+
+captive_portal:
+
+# SHT31 sensor
+i2c:
+  id: bus_a
+  sda: 21  # SHT31 SDA
+  scl: 19  # SHT31 SCL
+
+# OneWire bus for DS18B20 sensors
+one_wire:
+  - platform: gpio
+    id: onewire_bus
+    pin: 
+      number: GPIO32 # OneWire data pin
+      mode:
+        input: true
+        pullup: true  # Enable internal pull-up resistor
+
+sensor:
+  - platform: sht3xd
+    i2c_id: bus_a
+    update_interval: 1s
+    temperature:
+      name: "Middle Temperature"
+      id: sht31_temp
+      on_value:
+        then:
+          - lambda: |-
+              ESP_LOGI("sht31", "Temperature changed: %.2f", id(sht31_temp).state);
+    humidity:
+      name: "Humidity"
+      id: sht31_hum
+      on_value:
+        then:
+          - lambda: |-
+              ESP_LOGI("sht31", "Humidity changed: %.2f", id(sht31_hum).state);
+    address: 0x44
+
+  - platform: dallas_temp
+    one_wire_id: onewire_bus
+    address: 0xe28a447c1f64ff28  # Real address from logs
+    name: "Substrate Temperature"
+    id: substrate_temp
+    accuracy_decimals: 1
+    
+  - platform: dallas_temp
+    one_wire_id: onewire_bus
+    address: 0x74057c7c1f64ff28  # Real address from logs  
+    name: "Basking Temperature"
+    id: basking_temp
+    accuracy_decimals: 1

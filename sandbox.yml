@@ -61,47 +61,48 @@ display:
     dc_pin: 42
     reset_pin: 0
     backlight_pin: 1
-    rotation: 0
+    rotation: 270
     lambda: |-
-      // CHINO's PLACE (top)
-      it.printf(12, 2, id(font_header), Color(255,255,255), "VIVARIUM");
+      it.printf(14, 10, id(Roboto), Color(255, 255, 255), "VIVARIUM");
+      it.printf(14, 45, id(Roboto_14), Color(255, 255, 255), "BASKING");
+      it.printf(14, 100, id(Roboto_14), Color(255, 255, 255), "CENTRAL");
+      it.printf(14, 156, id(Roboto_14), Color(255, 255, 255), "LOWER");
+      it.printf(115, 45, id(Roboto_14), Color(255, 255, 255), "HUMIDITY");
+      it.printf(115, 100, id(Roboto_14), Color(255, 255, 255), "HEAT");
+      it.printf(115, 156, id(Roboto_14), Color(255, 255, 255), "UV");
 
-      // TEMP label (upper)
-      it.printf(20, 60, id(font_medium), Color(255,255,255), "TEMP");
+      it.printf(74, 64, id(Roboto_14), Color(255, 255, 255), "°C");
+      it.printf(74, 122, id(Roboto_14), Color(255, 255, 255), "°C");
+      it.printf(74, 180, id(Roboto_14), Color(255, 255, 255), "°C");
+      it.printf(175, 64, id(Roboto_14), Color(255, 255, 255), "%%");
+      it.printf(175, 122, id(Roboto_14), Color(255, 255, 255), "%%");
 
-      // SHT31 Temperature (conditional color)
-      if (id(ext_temp).state >= 24 && id(ext_temp).state <= 35) {
-        it.printf(20, 80, id(font_large), Color(0,200,0), "%.1f", id(ext_temp).state);
-      } else {
-        it.printf(20, 80, id(font_large), Color(220,40,40), "%.1f", id(ext_temp).state);
-      }
-      it.printf(120, 90, id(font_medium), Color(255,255,255), "°C");
+      it.printf(14, 60, id(Roboto_30), Color(76, 175, 80), "%.1f", id(ext_temp).state);
+      it.printf(14, 117, id(Roboto_30), Color(255, 130, 0), "25.1");
+      it.printf(14, 175, id(Roboto_30), Color(233, 30, 99), "25.1");
 
-      // LAMP PERCENT (yellow)
-      it.printf(20, 140, id(font_medium), Color(255,220,40), "LAMP %d%%", (int)id(dimmer_percent).state);
+      it.printf(115, 60, id(Roboto_30), Color(255, 130, 0), "%.1f", id(ext_hum).state);
+      it.printf(115, 117, id(Roboto_30), Color(76, 175, 80), "%.0f", id(dimmer_percent).state);
+      it.printf(115, 175, id(Roboto_30), Color(76, 175, 80), "3.1");
+      
+      it.filled_circle(245, 88, 37, Color(238, 238, 238));
+      it.filled_circle(265, 72, 32, Color(0, 0, 0));
+      it.filled_circle(227, 102, 13, Color(117, 117, 117));
+      it.filled_circle(211, 111, 10, Color(117, 117, 117));
+      it.filled_circle(229, 104, 13, Color(117, 117, 117));
+      it.filled_circle(245, 111, 10, Color(117, 117, 117));
+      it.filled_rectangle(212, 106, 33, 16, Color(117, 117, 117));
 
-      // Humidity label (lower)
-      it.printf(20, 175, id(font_medium), Color(255,255,255), "HUMIDITY");
-      // SHT31 Humidity
-      it.printf(20, 195, id(font_large), Color(220,40,40), "%.1f", id(ext_hum).state);
-      it.printf(120, 205, id(font_medium), Color(255,255,255), "%%");
-
-      // FOG ON (yellow)
-      it.printf(20, 255, id(font_medium), Color(255,220,40), "FOG ON");
-
-      // Home Assistant offline warning
-      if (!api_is_connected()) {
-        it.printf(10, 300, id(font_medium), Color(255,40,40), "HA OFFLINE!");
-      }
+      it.line(106, 47, 106, 205, Color(255, 255, 255));
 
 # Fonts
 font:
   - file: "gfonts://Roboto"
-    id: font_medium
-    size: 18
+    id: Roboto_14
+    size: 14
   - file: "gfonts://Roboto"
-    id: font_large
-    size: 52
+    id: Roboto_30
+    size: 30
   - file: "gfonts://Roboto"
-    id: font_header
-    size: 45
+    id: Roboto
+    size: 20

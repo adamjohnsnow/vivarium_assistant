@@ -5,6 +5,15 @@ esphome:
   name_add_mac_suffix: false
   platformio_options:
     board_build.flash_size: 16MB
+  on_boot:
+    priority: 600
+    then:
+      - logger.log: "ESP32 booted successfully"
+      - logger.log: "LTR390 UV/Light sensor on I2C (SDA:8, SCL:9) initializing..."
+      - logger.log: "HC-SR04 sensor on GPIO10(trigger)/GPIO11(echo) initializing..."
+      - delay: 3s
+      - logger.log: "Boot sequence complete"
+      - logger.log: "WiFi + I2C sensors ready"
 
 esp32:
   board: esp32-s3-devkitc-1
@@ -13,16 +22,24 @@ esp32:
 
 # Enable logging
 logger:
+  level: DEBUG  # Enable debug logging to see OneWire device discovery
+  logs:
+    adc: DEBUG
+    sensor: DEBUG
+    component: DEBUG
+    ultrasonic.sensor: DEBUG
 
-# Enable Home Assistant API
+# Home Assistant API disabled when WiFi is off
 api:
   encryption:
     key: "8WJ5tXb1DCDjglBGkLtdoTYyNrHyFNlyb6bnGrKKBpA="
 
+# OTA disabled when WiFi is off - use USB for updates
 ota:
   - platform: esphome
     password: "e552ee7b0b3ca8b2140911a5a8efaa32"
 
+# WiFi disabled to eliminate ADC interference - update via USB
 wifi:
   ssid: !secret wifi_ssid
   password: !secret wifi_password
@@ -33,55 +50,70 @@ spi:
   clk_pin: 47
   data_pins: [18, 7, 48, 5]
 
+# I2C for LTR390 UV/Light sensor
 i2c:
-  id: bus_a
-  sda: 13  # SHT31 SDA
-  scl: 14  # SHT31 SCL
+  sda: 8
+  scl: 9
+  scan: true
 
-binary_sensor:
-  - platform: homeassistant
-    name: "Lamp Status"
-    id: lamp_status
-    entity_id: switch.smart_power_strip_socket_1
-
-switch:
-  - platform: gpio
-    name: "Ext Fan"
-    pin: GPIO37  # Change to your chosen GPIO
-    id: ext_fan
-
-# SHT31 sensor
+# LTR390 sensor
 sensor:
-  - platform: sht3xd
-    i2c_id: bus_a
-    update_interval: 1s
-    temperature:
-      name: "Vivarium Temperature"
-      id: sht31_temp
-      on_value:
-        then:
-          - lambda: |-
-              ESP_LOGI("sht31", "Temperature changed: %.2f", id(sht31_temp).state);
-    humidity:
-      name: "Vivarium Humidity"
-      id: sht31_hum
-      on_value:
-        then:
-          - lambda: |-
-              ESP_LOGI("sht31", "Humidity changed: %.2f", id(sht31_hum).state);
-    address: 0x44
+  # LTR390 UV and Ambient Light Sensor (I2C - no WiFi interference)
+  - platform: ltr390
+    address: 0x53
+    uv_index:
+      name: "UV Index"
+      id: uv_index
+      accuracy_decimals: 2
+    uv:
+      name: "UV"
+      id: uv_raw
+      accuracy_decimals: 0
+    light:
+      name: "Light"
+      id: ambient_light
+      accuracy_decimals: 0
+    gain: X3
+    resolution: 18
+    update_interval: 5s
 
-# Touch interface (FT3168)
-# touchscreen:
-#   - platform: ft5x06
-#     id: my_touch
-#     interrupt_pin: 41
-#     address: 0x38  # Try detected address
-#     on_touch:
-#       - lambda: |-
-#           static int color_state = 0;
-#           color_state = (color_state + 1) % 4;
-#           id(my_display).update();
+  # HC-SR04 Ultrasonic Distance Sensor
+  - platform: ultrasonic
+    trigger_pin: GPIO10
+    echo_pin: GPIO11
+    name: "Distance"
+    id: distance_sensor
+    update_interval: 1s  # Increased from 2s to reduce timeout frequency
+    timeout: 4m  # Reduced from 3m - most HC-SR04 max range is ~4m anyway
+    pulse_time: 10us  # Explicit trigger pulse time
+    unit_of_measurement: "cm"
+    accuracy_decimals: 1
+    filters:
+      - filter_out: nan
+      - lambda: |-
+          ESP_LOGD("distance_sensor", "Raw distance reading: %.2f cm", x);
+          if (isnan(x)) {
+            ESP_LOGW("distance_sensor", "Distance reading is NaN (sensor timeout)");
+            return {};
+          }
+          // Convert from meters to centimeters (ESPHome returns meters)
+          float cm_value = x * 100.0;
+          if (cm_value < 2.0) {
+            ESP_LOGW("distance_sensor", "Distance too close: %.2f cm (minimum ~2cm)", cm_value);
+          }
+          if (cm_value > 400.0) {
+            ESP_LOGW("distance_sensor", "Distance too far: %.2f cm (maximum ~400cm)", cm_value);
+          }
+          ESP_LOGI("distance_sensor", "Valid distance: %.2f cm", cm_value);
+          return cm_value;
+      - median:
+          window_size: 3  # Reduced window size
+          send_every: 2
+    on_value:
+      then:
+        - logger.log:
+            format: "Distance sensor updated: %.2f cm"
+            args: ['x']
 
 display:
   - platform: qspi_dbi
@@ -91,52 +123,69 @@ display:
       height: 400
       width: 240
     brightness: 200
+    rotation: 270
     cs_pin: 6
     reset_pin: 17
     enable_pin: 38
     lambda: |-
-      // CHINO's PLACE (top)
-      it.printf(12, 10, id(font_header), Color(255,255,255), "VIVARIUM");
+      // Title
+      it.printf(120, 20, id(font_medium), Color(255,255,255), TextAlign::CENTER, "VIRTUAL CHAMELEON");
 
-      // TEMP label (upper)
-      it.printf(25, 70, id(font_medium), Color(255,255,255), "TEMP");
-
-      // SHT31 Temperature (conditional color)
-      if (id(sht31_temp).state >= 24 && id(sht31_temp).state <= 35) {
-        it.printf(25, 100, id(font_large), Color(0,200,0), "%.1f", id(sht31_temp).state);
+      // UV Index Section (LTR390)
+      it.printf(25, 50, id(font_small), Color(255,255,255), "UV Index:");
+      if (id(uv_index).has_state()) {
+        float uv_val = id(uv_index).state;
+        if (isnan(uv_val)) {
+          it.printf(25, 70, id(font_medium), Color(255,100,100), "NaN Error");
+        } else if (uv_val < 3.0) {
+          it.printf(25, 70, id(font_medium), Color(0,200,0), "%.2f (Low)", uv_val);
+        } else if (uv_val < 6.0) {
+          it.printf(25, 70, id(font_medium), Color(255,200,0), "%.2f (Moderate)", uv_val);
+        } else if (uv_val < 8.0) {
+          it.printf(25, 70, id(font_medium), Color(255,100,0), "%.2f (High)", uv_val);
+        } else {
+          it.printf(25, 70, id(font_medium), Color(255,0,0), "%.2f (Very High)", uv_val);
+        }
       } else {
-        it.printf(25, 100, id(font_large), Color(220,40,40), "%.1f", id(sht31_temp).state);
+        it.printf(25, 70, id(font_medium), Color(255,100,100), "No Data");
       }
-      it.printf(145, 110, id(font_medium), Color(255,255,255), "°C");
-
-      // LAMP OFF (white)
-      if (id(lamp_status).state) {
-        it.printf(25, 170, id(font_medium), Color(255,220,40), "LAMP ON");
+      
+      // Ambient Light Section
+      it.printf(25, 100, id(font_small), Color(255,255,255), "Light:");
+      if (id(ambient_light).has_state()) {
+        it.printf(25, 120, id(font_medium), Color(200,200,0), "%.0f lux", id(ambient_light).state);
       } else {
-        it.printf(25, 170, id(font_medium), Color(200,200,200), "LAMP OFF");
+        it.printf(25, 120, id(font_medium), Color(255,100,100), "No Data");
       }
-
-      // Humidity label (lower)
-      it.printf(25, 235, id(font_medium), Color(255,255,255), "HUMIDITY");
-      // SHT31 Humidity (conditional color)
-      if (id(sht31_hum).state < 75) {
-        it.printf(25, 265, id(font_large), Color(220,40,40), "%.1f", id(sht31_hum).state);
+      
+      // Distance Sensor Section
+      it.printf(25, 150, id(font_small), Color(255,255,255), "Distance:");
+      if (id(distance_sensor).has_state()) {
+        float dist_val = id(distance_sensor).state;
+        if (isnan(dist_val)) {
+          it.printf(25, 170, id(font_medium), Color(255,100,100), "Timeout/NaN");
+        } else if (dist_val < 2.0) {
+          it.printf(25, 170, id(font_medium), Color(255,150,0), "%.1f cm (Too Close)", dist_val);
+        } else if (dist_val > 400.0) {
+          it.printf(25, 170, id(font_medium), Color(255,150,0), "%.1f cm (Too Far)", dist_val);
+        } else {
+          it.printf(25, 170, id(font_medium), Color(0,150,255), "%.1f cm", dist_val);
+        }
       } else {
-        it.printf(25, 265, id(font_large), Color(0,200,0), "%.1f", id(sht31_hum).state);
+        it.printf(25, 170, id(font_medium), Color(255,100,100), "No Echo Signal");
       }
-      it.printf(145, 275, id(font_medium), Color(255,255,255), "%%");
-
-      // FOG ON (yellow)
-      it.printf(25, 335, id(font_medium), Color(255,220,40), "FOG ON");
+      
+      // Status info
+      it.printf(25, 200, id(font_small), Color(200,200,200), "WiFi + I2C Active");
 
 # Fonts
 font:
   - file: "gfonts://Roboto"
+    id: font_small
+    size: 18
+  - file: "gfonts://Roboto"
     id: font_medium
     size: 26
-  - file: "gfonts://Roboto"
-    id: font_large
-    size: 60
   - file: "gfonts://Roboto"
     id: font_header
     size: 45
