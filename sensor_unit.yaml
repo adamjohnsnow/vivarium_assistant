@@ -72,10 +72,12 @@ sensor:
     name: "Substrate Temperature"
     id: substrate_temp
     accuracy_decimals: 1
-    
+    update_interval: 1s
+
   - platform: dallas_temp
     one_wire_id: onewire_bus
     address: 0x74057c7c1f64ff28  # Real address from logs  
     name: "Basking Temperature"
     id: basking_temp
     accuracy_decimals: 1
+    update_interval: 1s

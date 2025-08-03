@@ -1,0 +1,187 @@
+# TerraSky IR Control Scripts
+
+# Learn Commands - Run these first to capture IR codes
+learn_power:
+  alias: Learn IR Power Command
+  sequence:
+    - service: remote.learn_command
+      data:
+        entity_id: remote.ir_blaster
+        device: terra_sky
+        command: power
+        command_type: ir
+
+learn_high_sun:
+  alias: Learn IR High Sun Command
+  sequence:
+    - service: remote.learn_command
+      data:
+        entity_id: remote.ir_blaster
+        device: terra_sky
+        command: high_sun
+        command_type: ir
+
+learn_mid_sun:
+  alias: Learn IR Mid Sun Command
+  sequence:
+    - service: remote.learn_command
+      data:
+        entity_id: remote.ir_blaster
+        device: terra_sky
+        command: mid_sun
+        command_type: ir
+
+learn_low_sun:
+  alias: Learn IR Low Sun Command
+  sequence:
+    - service: remote.learn_command
+      data:
+        entity_id: remote.ir_blaster
+        device: terra_sky
+        command: low_sun
+        command_type: ir
+
+learn_low_moon:
+  alias: Learn IR Low Moon Command
+  sequence:
+    - service: remote.learn_command
+      data:
+        entity_id: remote.ir_blaster
+        device: terra_sky
+        command: low_moon
+        command_type: ir
+
+learn_high_moon:
+  alias: Learn IR High Moon Command
+  sequence:
+    - service: remote.learn_command
+      data:
+        entity_id: remote.ir_blaster
+        device: terra_sky
+        command: high_moon
+        command_type: ir
+
+learn_custom_1:
+  alias: Learn IR Custom 1 Command
+  sequence:
+    - service: remote.learn_command
+      data:
+        entity_id: remote.ir_blaster
+        device: terra_sky
+        command: custom_1
+        command_type: ir
+
+learn_custom_2:
+  alias: Learn IR Custom 2 Command
+  sequence:
+    - service: remote.learn_command
+      data:
+        entity_id: remote.ir_blaster
+        device: terra_sky
+        command: custom_2
+        command_type: ir
+
+# Send Commands - Use these to control the TerraSky light
+send_terra_sky_power:
+  alias: TerraSky Power
+  sequence:
+    - service: remote.send_command
+      data:
+        entity_id: remote.ir_blaster
+        device: terra_sky
+        command: power
+    - service: input_select.select_option
+      data:
+        entity_id: input_select.terrasky_last_action
+        option: "Power"
+
+send_terra_sky_high_sun:
+  alias: TerraSky High Sun
+  sequence:
+    - service: remote.send_command
+      data:
+        entity_id: remote.ir_blaster
+        device: terra_sky
+        command: high_sun
+    - service: input_select.select_option
+      data:
+        entity_id: input_select.terrasky_last_action
+        option: "High Sun"
+
+send_terra_sky_mid_sun:
+  alias: TerraSky Mid Sun
+  sequence:
+    - service: remote.send_command
+      data:
+        entity_id: remote.ir_blaster
+        device: terra_sky
+        command: mid_sun
+    - service: input_select.select_option
+      data:
+        entity_id: input_select.terrasky_last_action
+        option: "Mid Sun"
+
+send_terra_sky_low_sun:
+  alias: TerraSky Low Sun
+  sequence:
+    - service: remote.send_command
+      data:
+        entity_id: remote.ir_blaster
+        device: terra_sky
+        command: low_sun
+    - service: input_select.select_option
+      data:
+        entity_id: input_select.terrasky_last_action
+        option: "Low Sun"
+
+send_terra_sky_low_moon:
+  alias: TerraSky Low Moon
+  sequence:
+    - service: remote.send_command
+      data:
+        entity_id: remote.ir_blaster
+        device: terra_sky
+        command: low_moon
+    - service: input_select.select_option
+      data:
+        entity_id: input_select.terrasky_last_action
+        option: "Low Moon"
+
+send_terra_sky_high_moon:
+  alias: TerraSky High Moon
+  sequence:
+    - service: remote.send_command
+      data:
+        entity_id: remote.ir_blaster
+        device: terra_sky
+        command: high_moon
+    - service: input_select.select_option
+      data:
+        entity_id: input_select.terrasky_last_action
+        option: "High Moon"
+
+send_terra_sky_custom_1:
+  alias: TerraSky Custom 1
+  sequence:
+    - service: remote.send_command
+      data:
+        entity_id: remote.ir_blaster
+        device: terra_sky
+        command: custom_1
+    - service: input_select.select_option
+      data:
+        entity_id: input_select.terrasky_last_action
+        option: "Custom 1"
+
+send_terra_sky_custom_2:
+  alias: TerraSky Custom 2
+  sequence:
+    - service: remote.send_command
+      data:
+        entity_id: remote.ir_blaster
+        device: terra_sky
+        command: custom_2
+    - service: input_select.select_option
+      data:
+        entity_id: input_select.terrasky_last_action
+        option: "Custom 2"

@@ -1,0 +1,21 @@
+# Add this to your configuration.yaml file
+
+# TerraSky State Tracking
+input_select:
+  terrasky_last_action:
+    name: "TerraSky Last Action"
+    options:
+      - "Power"
+      - "High Sun"
+      - "Mid Sun"
+      - "Low Sun"
+      - "Low Moon"
+      - "High Moon"
+      - "Custom 1"
+      - "Custom 2"
+      - "Unknown"
+    initial: "Unknown"
+    icon: mdi:lightbulb
+
+# Or if you already have script: in your configuration.yaml, 
+# add the contents from scripts.yaml under that section

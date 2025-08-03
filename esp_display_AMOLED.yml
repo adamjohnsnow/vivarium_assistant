@@ -9,11 +9,21 @@ esphome:
     priority: 600
     then:
       - logger.log: "ESP32 booted successfully"
-      - logger.log: "LTR390 UV/Light sensor on I2C (SDA:8, SCL:9) initializing..."
+      - logger.log: "LTR390 UV/Light sensor on I2C (SDA:21, SCL:20) initializing..."
       - logger.log: "HC-SR04 sensor on GPIO10(trigger)/GPIO11(echo) initializing..."
       - delay: 3s
       - logger.log: "Boot sequence complete"
       - logger.log: "WiFi + I2C sensors ready"
+      - logger.log: "Starting I2C device scan..."
+      - lambda: |-
+          ESP_LOGI("i2c_scan", "Scanning I2C bus for devices...");
+          auto i2c_bus = id(bus_a);
+          for (uint8_t address = 8; address < 120; address++) {
+            if (i2c_bus->write(address, nullptr, 0) == i2c::ERROR_OK) {
+              ESP_LOGI("i2c_scan", "Found I2C device at address 0x%02X", address);
+            }
+          }
+          ESP_LOGI("i2c_scan", "I2C scan complete");
 
 esp32:
   board: esp32-s3-devkitc-1
@@ -52,9 +62,10 @@ spi:
 
 # I2C for LTR390 UV/Light sensor
 i2c:
-  sda: 8
-  scl: 9
+  sda: 21
+  scl: 20
   scan: true
+  id: bus_a
 
 # LTR390 sensor
 sensor:
@@ -65,17 +76,32 @@ sensor:
       name: "UV Index"
       id: uv_index
       accuracy_decimals: 2
+      on_value:
+        then:
+          - logger.log:
+              format: "UV Index updated: %.2f"
+              args: ['x']
     uv:
       name: "UV"
       id: uv_raw
       accuracy_decimals: 0
+      on_value:
+        then:
+          - logger.log:
+              format: "UV Raw value: %.0f"
+              args: ['x']
     light:
       name: "Light"
       id: ambient_light
       accuracy_decimals: 0
+      on_value:
+        then:
+          - logger.log:
+              format: "Ambient Light: %.0f lux"
+              args: ['x']
     gain: X3
     resolution: 18
-    update_interval: 5s
+    update_interval: 1s
 
   # HC-SR04 Ultrasonic Distance Sensor
   - platform: ultrasonic
@@ -83,8 +109,8 @@ sensor:
     echo_pin: GPIO11
     name: "Distance"
     id: distance_sensor
-    update_interval: 1s  # Increased from 2s to reduce timeout frequency
-    timeout: 4m  # Reduced from 3m - most HC-SR04 max range is ~4m anyway
+    update_interval: 1s
+    timeout: 4m
     pulse_time: 10us  # Explicit trigger pulse time
     unit_of_measurement: "cm"
     accuracy_decimals: 1
@@ -111,9 +137,9 @@ sensor:
           send_every: 2
     on_value:
       then:
-        - logger.log:
-            format: "Distance sensor updated: %.2f cm"
-            args: ['x']
+        # - logger.log:
+        #     format: "Distance sensor updated: %.2f cm"
+        #     args: ['x']
 
 display:
   - platform: qspi_dbi
@@ -129,7 +155,7 @@ display:
     enable_pin: 38
     lambda: |-
       // Title
-      it.printf(120, 20, id(font_medium), Color(255,255,255), TextAlign::CENTER, "VIRTUAL CHAMELEON");
+      it.printf(15, 8, id(font_medium), Color(255,255,0), "VIRTUAL CHAMELEON");
 
       // UV Index Section (LTR390)
       it.printf(25, 50, id(font_small), Color(255,255,255), "UV Index:");
@@ -149,34 +175,44 @@ display:
       } else {
         it.printf(25, 70, id(font_medium), Color(255,100,100), "No Data");
       }
+
+      it.printf(145, 50, id(font_small), Color(255,255,255), "UV:");
+      if (id(uv_index).has_state()) {
+        float uv_val = id(uv_index).state;
+        if (isnan(uv_val)) {
+          it.printf(145, 70, id(font_medium), Color(255,100,100), "NaN Error");
+        } else {
+          it.printf(145, 70, id(font_medium), Color(255,0,0), "%.2f", uv_raw);
+        }
+      } else {
+        it.printf(145, 70, id(font_medium), Color(255,100,100), "No Data");
+      }
+
       
       // Ambient Light Section
-      it.printf(25, 100, id(font_small), Color(255,255,255), "Light:");
+      it.printf(25, 110, id(font_small), Color(255,255,255), "Light:");
       if (id(ambient_light).has_state()) {
-        it.printf(25, 120, id(font_medium), Color(200,200,0), "%.0f lux", id(ambient_light).state);
+        it.printf(25, 130, id(font_medium), Color(200,200,0), "%.0f lux", id(ambient_light).state);
       } else {
-        it.printf(25, 120, id(font_medium), Color(255,100,100), "No Data");
+        it.printf(25, 130, id(font_medium), Color(255,100,100), "No Data");
       }
       
       // Distance Sensor Section
-      it.printf(25, 150, id(font_small), Color(255,255,255), "Distance:");
+      it.printf(25, 170, id(font_small), Color(255,255,255), "Distance:");
       if (id(distance_sensor).has_state()) {
         float dist_val = id(distance_sensor).state;
         if (isnan(dist_val)) {
-          it.printf(25, 170, id(font_medium), Color(255,100,100), "Timeout/NaN");
+          it.printf(25, 190, id(font_medium), Color(255,100,100), "Timeout/NaN");
         } else if (dist_val < 2.0) {
-          it.printf(25, 170, id(font_medium), Color(255,150,0), "%.1f cm (Too Close)", dist_val);
+          it.printf(25, 190, id(font_medium), Color(255,150,0), "%.1f cm (Too Close)", dist_val);
         } else if (dist_val > 400.0) {
-          it.printf(25, 170, id(font_medium), Color(255,150,0), "%.1f cm (Too Far)", dist_val);
+          it.printf(25, 190, id(font_medium), Color(255,150,0), "%.1f cm (Too Far)", dist_val);
         } else {
-          it.printf(25, 170, id(font_medium), Color(0,150,255), "%.1f cm", dist_val);
+          it.printf(25, 190, id(font_medium), Color(0,150,255), "%.1f cm", dist_val);
         }
       } else {
-        it.printf(25, 170, id(font_medium), Color(255,100,100), "No Echo Signal");
+        it.printf(25, 190, id(font_medium), Color(255,100,100), "No Echo Signal");
       }
-      
-      // Status info
-      it.printf(25, 200, id(font_small), Color(200,200,200), "WiFi + I2C Active");
 
 # Fonts
 font:
@@ -185,7 +221,7 @@ font:
     size: 18
   - file: "gfonts://Roboto"
     id: font_medium
-    size: 26
+    size: 30
   - file: "gfonts://Roboto"
     id: font_header
     size: 45

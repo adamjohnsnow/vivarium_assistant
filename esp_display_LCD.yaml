@@ -1,19 +1,10 @@
 esphome:
-  name: esphome-web-e86508
-  friendly_name: Vivarium
+  name: vivsensor320
+  friendly_name: VivariumII
   min_version: 2025.5.0
   name_add_mac_suffix: false
   platformio_options:
     board_build.flash_size: 16MB
-  on_boot:
-    priority: 600
-    then:
-      - logger.log: "ESP32 booted successfully"
-      - logger.log: "LTR390 UV/Light sensor on I2C (SDA:8, SCL:9) initializing..."
-      - logger.log: "HC-SR04 sensor on GPIO10(trigger)/GPIO11(echo) initializing..."
-      - delay: 3s
-      - logger.log: "Boot sequence complete"
-      - logger.log: "WiFi + I2C sensors ready"
 
 esp32:
   board: esp32-s3-devkitc-1
@@ -22,167 +13,250 @@ esp32:
 
 # Enable logging
 logger:
-  level: DEBUG  # Enable debug logging to see OneWire device discovery
-  logs:
-    adc: DEBUG
-    sensor: DEBUG
-    component: DEBUG
-    ultrasonic.sensor: DEBUG
 
-# Home Assistant API disabled when WiFi is off
+# Enable Home Assistant API
 api:
   encryption:
-    key: "8WJ5tXb1DCDjglBGkLtdoTYyNrHyFNlyb6bnGrKKBpA="
+    key: "6b/aM1kv5AO7QxCHrUNSwmBTTMHqumrld3cIjFkHsgg="
 
-# OTA disabled when WiFi is off - use USB for updates
 ota:
   - platform: esphome
-    password: "e552ee7b0b3ca8b2140911a5a8efaa32"
+    password: "45729663d51cd36a476d62ffa87f19ff"
 
-# WiFi disabled to eliminate ADC interference - update via USB
 wifi:
-  ssid: !secret wifi_password
-  password: !secret wifi_ssid
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Viv3 Fallback Hotspot"
+    password: "FqYYZgJOn9Mg"
+
+captive_portal:
 
 spi:
-  id: quad_spi
-  type: quad
-  clk_pin: 47
-  data_pins: [18, 7, 48, 5]
-
-# I2C for LTR390 UV/Light sensor
-i2c:
-  sda: 8
-  scl: 9
-  scan: true
-
-# LTR390 sensor
+  clk_pin: GPIO39
+  mosi_pin: GPIO38
+  
 sensor:
-  # LTR390 UV and Ambient Light Sensor (I2C - no WiFi interference)
-  - platform: ltr390
-    address: 0x53
-    uv_index:
-      name: "UV Index"
-      id: uv_index
-      accuracy_decimals: 2
-    uv:
-      name: "UV"
-      id: uv_raw
-      accuracy_decimals: 0
-    light:
-      name: "Light"
-      id: ambient_light
-      accuracy_decimals: 0
-    gain: X3
-    resolution: 18
-    update_interval: 5s
+  - platform: adc
+    pin: GPIO4
+    name: "UV Raw Voltage"
+    id: uv_raw_voltage
+    update_interval: 3s
+    attenuation: auto
+    unit_of_measurement: "V"
+    accuracy_decimals: 10
+  - platform: homeassistant
+    id: dimmer_percent
+    entity_id: input_number.vivarium_dimmer_percent
+  - platform: homeassistant
+    id: bask_temp
+    entity_id: sensor.vivariumsensors_basking_temperature
+  - platform: homeassistant
+    id: humidity
+    entity_id: sensor.vivariumsensors_humidity
+  - platform: homeassistant
+    id: mid_temp
+    entity_id: sensor.vivariumsensors_middle_temperature
+  - platform: homeassistant
+    id: base_temp
+    entity_id: sensor.vivariumsensors_substrate_temperature
 
-  # HC-SR04 Ultrasonic Distance Sensor
-  - platform: ultrasonic
-    trigger_pin: GPIO10
-    echo_pin: GPIO11
-    name: "Distance"
-    id: distance_sensor
-    update_interval: 0.5s
-    timeout: 4m
-    pulse_time: 10us  # Explicit trigger pulse time
-    unit_of_measurement: "cm"
-    accuracy_decimals: 1
-    filters:
-      - filter_out: nan
-      - lambda: |-
-          ESP_LOGD("distance_sensor", "Raw distance reading: %.2f cm", x);
-          if (isnan(x)) {
-            ESP_LOGW("distance_sensor", "Distance reading is NaN (sensor timeout)");
-            return {};
-          }
-          // Convert from meters to centimeters (ESPHome returns meters)
-          float cm_value = x * 100.0;
-          if (cm_value < 2.0) {
-            ESP_LOGW("distance_sensor", "Distance too close: %.2f cm (minimum ~2cm)", cm_value);
-          }
-          if (cm_value > 400.0) {
-            ESP_LOGW("distance_sensor", "Distance too far: %.2f cm (maximum ~400cm)", cm_value);
-          }
-          ESP_LOGI("distance_sensor", "Valid distance: %.2f cm", cm_value);
-          return cm_value;
-      - median:
-          window_size: 3  # Reduced window size
-          send_every: 2
-    on_value:
-      then:
-        - logger.log:
-            format: "Distance sensor updated: %.2f cm"
-            args: ['x']
+text_sensor:
+  - platform: homeassistant
+    id: lighting_status
+    entity_id: input_select.terrasky_last_action
+
+binary_sensor:
+  - platform: homeassistant
+    id: fan_power
+    entity_id: switch.fan_power
+  - platform: homeassistant
+    id: fogger_power
+    entity_id: switch.fogger_power
+  - platform: homeassistant
+    id: mister_power
+    entity_id: switch.mister_power
 
 display:
-  - platform: qspi_dbi
+  - platform: st7789v
     id: my_display
-    model: RM67162
-    dimensions:
-      height: 400
-      width: 240
-    brightness: 200
+    model: CUSTOM
+    width: 240
+    height: 320
+    offset_height: 0
+    offset_width: 0
+    cs_pin: 45
+    dc_pin: 42
+    reset_pin: 0
+    backlight_pin: 1
     rotation: 270
-    cs_pin: 6
-    reset_pin: 17
-    enable_pin: 38
+    update_interval: 100ms  # Fast updates for smooth animation
     lambda: |-
-      // Title
-      it.printf(120, 20, id(font_medium), Color(255,255,255), TextAlign::CENTER, "VIRTUAL CHAMELEON");
+      it.printf(14, 10, id(Roboto), Color(255, 255, 255), "VIVARIUM");
+      it.printf(14, 45, id(Roboto_14), Color(255, 255, 255), "BASKING");
+      it.printf(14, 100, id(Roboto_14), Color(255, 255, 255), "CENTRAL");
+      it.printf(14, 156, id(Roboto_14), Color(255, 255, 255), "LOWER");
+      it.printf(115, 45, id(Roboto_14), Color(255, 255, 255), "HUMIDITY");
+      it.printf(115, 100, id(Roboto_14), Color(255, 255, 255), "HEAT");
+      it.printf(115, 156, id(Roboto_14), Color(255, 255, 255), "UV");
 
-      // UV Index Section (LTR390)
-      it.printf(25, 50, id(font_small), Color(255,255,255), "UV Index:");
-      if (id(uv_index).has_state()) {
-        float uv_val = id(uv_index).state;
-        if (isnan(uv_val)) {
-          it.printf(25, 70, id(font_medium), Color(255,100,100), "NaN Error");
-        } else if (uv_val < 3.0) {
-          it.printf(25, 70, id(font_medium), Color(0,200,0), "%.2f (Low)", uv_val);
-        } else if (uv_val < 6.0) {
-          it.printf(25, 70, id(font_medium), Color(255,200,0), "%.2f (Moderate)", uv_val);
-        } else if (uv_val < 8.0) {
-          it.printf(25, 70, id(font_medium), Color(255,100,0), "%.2f (High)", uv_val);
-        } else {
-          it.printf(25, 70, id(font_medium), Color(255,0,0), "%.2f (Very High)", uv_val);
-        }
+      it.printf(75, 64, id(Roboto_14), Color(255, 255, 255), "°C");
+      it.printf(75, 122, id(Roboto_14), Color(255, 255, 255), "°C");
+      it.printf(75, 180, id(Roboto_14), Color(255, 255, 255), "°C");
+      it.printf(150, 64, id(Roboto_14), Color(255, 255, 255), "%%");
+      // Adjust % position based on dimmer value (move right for 3-digit numbers)
+      if (id(dimmer_percent).state >= 100) {
+        it.printf(167, 122, id(Roboto_14), Color(255, 255, 255), "%%");
       } else {
-        it.printf(25, 70, id(font_medium), Color(255,100,100), "No Data");
+        it.printf(150, 122, id(Roboto_14), Color(255, 255, 255), "%%");
       }
+
+      // Temperature readings with color coding based on ranges
+      // Basking temp: <27=amber, 27-28=green, >28=red
+      Color bask_color = Color(255, 130, 0); // amber default
+      if (id(bask_temp).state >= 27 && id(bask_temp).state <= 28) {
+        bask_color = Color(76, 175, 80); // green
+      } else if (id(bask_temp).state > 28) {
+        bask_color = Color(233, 30, 99); // red
+      }
+      it.printf(14, 60, id(Roboto_30), bask_color, "%.1f", id(bask_temp).state);
       
-      // Ambient Light Section
-      it.printf(25, 100, id(font_small), Color(255,255,255), "Light:");
-      if (id(ambient_light).has_state()) {
-        it.printf(25, 120, id(font_medium), Color(200,200,0), "%.0f lux", id(ambient_light).state);
-      } else {
-        it.printf(25, 120, id(font_medium), Color(255,100,100), "No Data");
+      // Middle temp: <27=amber, 27-28=green, >28=red
+      Color mid_color = Color(255, 130, 0); // amber default
+      if (id(mid_temp).state >= 27 && id(mid_temp).state <= 28) {
+        mid_color = Color(76, 175, 80); // green
+      } else if (id(mid_temp).state > 28) {
+        mid_color = Color(233, 30, 99); // red
       }
+      it.printf(14, 117, id(Roboto_30), mid_color, "%.1f", id(mid_temp).state);
       
-      // Distance Sensor Section
-      it.printf(25, 150, id(font_small), Color(255,255,255), "Distance:");
-      if (id(distance_sensor).has_state()) {
-        float dist_val = id(distance_sensor).state;
-        if (isnan(dist_val)) {
-          it.printf(25, 170, id(font_medium), Color(255,100,100), "Timeout/NaN");
-        } else if (dist_val < 2.0) {
-          it.printf(25, 170, id(font_medium), Color(255,150,0), "%.1f cm (Too Close)", dist_val);
-        } else if (dist_val > 400.0) {
-          it.printf(25, 170, id(font_medium), Color(255,150,0), "%.1f cm (Too Far)", dist_val);
-        } else {
-          it.printf(25, 170, id(font_medium), Color(0,150,255), "%.1f cm", dist_val);
-        }
-      } else {
-        it.printf(25, 170, id(font_medium), Color(255,100,100), "No Echo Signal");
+      // Base temp: <27=amber, 27-28=green, >28=red
+      Color base_color = Color(255, 130, 0); // amber default
+      if (id(base_temp).state >= 27 && id(base_temp).state <= 28) {
+        base_color = Color(76, 175, 80); // green
+      } else if (id(base_temp).state > 28) {
+        base_color = Color(233, 30, 99); // red
       }
+      it.printf(14, 175, id(Roboto_30), base_color, "%.1f", id(base_temp).state);
+
+      it.printf(115, 60, id(Roboto_30), Color(255, 130, 0), "%.0f", id(humidity).state);
+      it.printf(115, 117, id(Roboto_30), Color(76, 175, 80), "%.0f", id(dimmer_percent).state);
+      it.printf(115, 175, id(Roboto_30), Color(76, 175, 80), "%.1f", id(uv_raw_voltage).state);
+      
+      // Show moon graphic only when lighting status contains "Moon"
+      if (id(lighting_status).state.find("High Moon") != std::string::npos) {
+        it.filled_circle(245, 88, 37, Color(238, 238, 238));
+      }
+      if (id(lighting_status).state.find("Low Moon") != std::string::npos) {
+        it.filled_circle(245, 88, 37, Color(189, 189, 189));
+      }
+      if (id(lighting_status).state.find("Moon") != std::string::npos) {
+        it.filled_circle(265, 72, 32, Color(0, 0, 0));
+      }
+
+      // Show sun graphic with intensity-based color when lighting status contains "Sun"
+      if (id(lighting_status).state.find("Sun") != std::string::npos) {
+        if (id(lighting_status).state.find("High Sun") != std::string::npos) {
+          it.filled_circle(245, 88, 37, Color(255, 255, 0));  // Bright yellow for High Sun
+        } else if (id(lighting_status).state.find("Mid Sun") != std::string::npos) {
+          it.filled_circle(245, 88, 37, Color(255, 255, 125)); // Pale yellow for Mid Sun
+        } else if (id(lighting_status).state.find("Low Sun") != std::string::npos) {
+          it.filled_circle(245, 88, 37, Color(255, 255, 150)); // Very pale yellow for Low Sun
+        }
+      }
+
+      // Show fogger graphic only when fogger is on
+      if (id(fogger_power).state) {
+        // Animated fog clouds sweeping left to right
+        int fog_offset = (millis() / 80) % 50;  // Sweep animation
+        
+        // Base fog elements with sweep animation
+        it.filled_circle(227 + fog_offset, 102, 13, Color(117, 117, 117));
+        it.filled_circle(211 + fog_offset, 111, 10, Color(117, 117, 117));
+        it.filled_circle(229 + fog_offset, 104, 13, Color(117, 117, 117));
+        it.filled_circle(245 + fog_offset, 111, 10, Color(117, 117, 117));
+        it.filled_rectangle(212 + fog_offset, 106, 33, 16, Color(117, 117, 117));
+      }
+
+      if (id(mister_power).state) {
+        // Animated raindrops moving diagonally from top-right to bottom-left
+        int drop_offset = (millis() / 50) % 50;  // Wider cycle for more spread
+        
+        // Raindrop 1
+        int x1 = 255 - drop_offset;
+        int y1 = 52 + drop_offset;
+        if (x1 >= 180 && y1 <= 140) {
+          it.filled_circle(x1, y1, 3, Color(3, 169, 244));
+          it.filled_rectangle(x1-1, y1-3, 3, 3, Color(3, 169, 244));
+        }
+        
+        // Raindrop 2 (offset position and timing)
+        int x2 = 280 - ((drop_offset + 15) % 60);
+        int y2 = 47 + ((drop_offset + 15) % 60);
+        if (x2 >= 180 && y2 <= 140) {
+          it.filled_circle(x2, y2, 3, Color(3, 169, 244));
+          it.filled_rectangle(x2-1, y2-3, 3, 3, Color(3, 169, 244));
+        }
+        
+        // Raindrop 3
+        int x3 = 275 - ((drop_offset + 30) % 50);
+        int y3 = 57 + ((drop_offset + 30) % 50);
+        if (x3 >= 180 && y3 <= 140) {
+          it.filled_circle(x3, y3, 3, Color(3, 169, 244));
+          it.filled_rectangle(x3-1, y3-3, 3, 3, Color(3, 169, 244));
+        }
+        
+        // Raindrop 4
+        int x4 = 265 - ((drop_offset + 45) % 60);
+        int y4 = 62 + ((drop_offset + 45) % 60);
+        if (x4 >= 180 && y4 <= 140) {
+          it.filled_circle(x4, y4, 3, Color(3, 169, 244));
+          it.filled_rectangle(x4-1, y4-3, 3, 3, Color(3, 169, 244));
+        }
+        
+        // Raindrop 5
+        int x5 = 270 - ((drop_offset + 52) % 60);
+        int y5 = 67 + ((drop_offset + 52) % 60);
+        if (x5 >= 180 && y5 <= 140) {
+          it.filled_circle(x5, y5, 3, Color(3, 169, 244));
+          it.filled_rectangle(x5-1, y5-3, 3, 3, Color(3, 169, 244));
+        }
+      }
+
+      // Show animated wind graphic when fan is on (moved 100px higher)
+      if (id(fan_power).state) {
+        int offset = (millis() / 50) % 60; 
+        it.line(200 + offset, 70, 250 + offset, 70, Color(255, 255, 255));
+        it.line(200 + offset, 71, 250 + offset, 71, Color(255, 255, 255));
+        it.line(200 + offset, 80, 250 + offset, 80, Color(150, 220, 255));
+        it.line(200 + offset, 81, 250 + offset, 81, Color(150, 220, 255));
+        it.line(200 + offset, 90, 250 + offset, 90, Color(255, 255, 255));
+        it.line(202 + offset, 91, 250 + offset, 91, Color(255, 255, 255));
+        it.line(200 + offset, 100, 250 + offset, 100, Color(150, 220, 255));
+        it.line(202 + offset, 101, 250 + offset, 101, Color(150, 220, 255));
+        it.line(200 + offset, 110, 250 + offset, 110, Color(150, 220, 255));
+        it.line(202 + offset, 111, 250 + offset, 111, Color(150, 220, 255));
+
+        int offset2 = (millis() / 70) % 60;
+        it.line(200 + offset2, 75, 235 + offset2, 75, Color(80, 180, 255));
+        it.line(200 + offset2, 85, 235 + offset2, 85, Color(120, 200, 255));
+        it.line(200 + offset2, 95, 235 + offset2, 95, Color(80, 180, 255));
+        it.line(200 + offset2, 105, 235 + offset2, 105, Color(80, 180, 255));
+        it.line(200 + offset2, 115, 235 + offset2, 115, Color(80, 180, 255));
+      }
+
+      it.line(100, 47, 100, 205, Color(255, 255, 255));
 
 # Fonts
 font:
   - file: "gfonts://Roboto"
-    id: font_small
-    size: 18
+    id: Roboto_14
+    size: 14
   - file: "gfonts://Roboto"
-    id: font_medium
-    size: 26
+    id: Roboto_30
+    size: 30
   - file: "gfonts://Roboto"
-    id: font_header
-    size: 45
+    id: Roboto
+    size: 20
