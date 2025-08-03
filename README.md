@@ -33,7 +33,7 @@ A comprehensive environmental monitoring and control system for vivariums featur
 ### Environmental Controls
 
 - **Smart Fan** - WiFi controlled ventilation
-- **Smart Mister** - WiFi controlled misting system  
+- **Smart Mister** - WiFi controlled misting system
 - **Smart Fogger** - WiFi controlled fogging system
 
 ### Power Requirements
@@ -46,65 +46,65 @@ A comprehensive environmental monitoring and control system for vivariums featur
 
 ### ESP32-S3 AMOLED Unit (Primary Display)
 
-| Component                       | ESP32-S3 Pin  | Function          | Notes                   |
-| ------------------------------- | ------------- | ----------------- | ----------------------- |
-| **AMOLED Display (RM67162)**    |               |                   |                         |
-| CS                              | GPIO6         | Chip Select       | QSPI                    |
-| Reset                           | GPIO17        | Hardware Reset    | Active Low              |
-| Enable                          | GPIO38        | Display Enable    | Backlight Control       |
-| CLK                             | GPIO47        | SPI Clock         | Quad SPI                |
-| Data[0]                         | GPIO18        | SPI Data 0        | QSPI                    |
-| Data[1]                         | GPIO7         | SPI Data 1        | QSPI                    |
-| Data[2]                         | GPIO48        | SPI Data 2        | QSPI                    |
-| Data[3]                         | GPIO5         | SPI Data 3        | QSPI                    |
-| **LTR390 UV/Light Sensor**      |               |                   |                         |
-| SDA                             | GPIO13        | I2C Data          | Pull-up integrated      |
-| SCL                             | GPIO12        | I2C Clock         | Pull-up integrated      |
-| VCC                             | 3.3V          | Power             | Critical - check connection |
-| GND                             | GND           | Ground            |                         |
-| **HC-SR04 Distance Sensor**     |               |                   |                         |
-| Trigger                         | GPIO10        | Ultrasonic Trigger| 10µs pulse              |
-| Echo                            | GPIO11        | Echo Response     | Distance measurement    |
-| VCC                             | 5V            | Power             | Requires 5V             |
-| GND                             | GND           | Ground            |                         |
+| Component                    | ESP32-S3 Pin | Function           | Notes                       |
+| ---------------------------- | ------------ | ------------------ | --------------------------- |
+| **AMOLED Display (RM67162)** |              |                    |                             |
+| CS                           | GPIO6        | Chip Select        | QSPI                        |
+| Reset                        | GPIO17       | Hardware Reset     | Active Low                  |
+| Enable                       | GPIO38       | Display Enable     | Backlight Control           |
+| CLK                          | GPIO47       | SPI Clock          | Quad SPI                    |
+| Data[0]                      | GPIO18       | SPI Data 0         | QSPI                        |
+| Data[1]                      | GPIO7        | SPI Data 1         | QSPI                        |
+| Data[2]                      | GPIO48       | SPI Data 2         | QSPI                        |
+| Data[3]                      | GPIO5        | SPI Data 3         | QSPI                        |
+| **LTR390 UV/Light Sensor**   |              |                    |                             |
+| SDA                          | GPIO13       | I2C Data           | Pull-up integrated          |
+| SCL                          | GPIO12       | I2C Clock          | Pull-up integrated          |
+| VCC                          | 3.3V         | Power              | Critical - check connection |
+| GND                          | GND          | Ground             |                             |
+| **HC-SR04 Distance Sensor**  |              |                    |                             |
+| Trigger                      | GPIO10       | Ultrasonic Trigger | 10µs pulse                  |
+| Echo                         | GPIO11       | Echo Response      | Distance measurement        |
+| VCC                          | 5V           | Power              | Requires 5V                 |
+| GND                          | GND          | Ground             |                             |
 
 ### ESP32-S3 LCD Unit (Secondary Display)
 
-| Component                       | ESP32-S3 Pin  | Function          | Notes                   |
-| ------------------------------- | ------------- | ----------------- | ----------------------- |
-| **ST7789V LCD Display**         |               |                   |                         |
-| CS                              | GPIO45        | Chip Select       | SPI                     |
-| DC                              | GPIO42        | Data/Command      | SPI                     |
-| Reset                           | GPIO0         | Hardware Reset    | Active Low              |
-| Backlight                       | GPIO1         | Backlight Control | PWM capable             |
-| CLK                             | GPIO39        | SPI Clock         | Standard SPI            |
-| MOSI                            | GPIO38        | SPI Data          | Standard SPI            |
-| **ADC UV Sensor (Legacy)**      |               |                   |                         |
-| OUT                             | GPIO4         | Analog Output     | ML8511 equivalent       |
+| Component                  | ESP32-S3 Pin | Function          | Notes             |
+| -------------------------- | ------------ | ----------------- | ----------------- |
+| **ST7789V LCD Display**    |              |                   |                   |
+| CS                         | GPIO45       | Chip Select       | SPI               |
+| DC                         | GPIO42       | Data/Command      | SPI               |
+| Reset                      | GPIO0        | Hardware Reset    | Active Low        |
+| Backlight                  | GPIO1        | Backlight Control | PWM capable       |
+| CLK                        | GPIO39       | SPI Clock         | Standard SPI      |
+| MOSI                       | GPIO38       | SPI Data          | Standard SPI      |
+| **ADC UV Sensor (Legacy)** |              |                   |                   |
+| OUT                        | GPIO4        | Analog Output     | ML8511 equivalent |
 
 ### ESP32 Sensor Unit
 
-| Component                       | ESP32 Pin     | Function          | Notes                   |
-| ------------------------------- | ------------- | ----------------- | ----------------------- |
-| **SHT31 Sensor**                |               |                   |                         |
-| SDA                             | GPIO21        | I2C Data          | Pull-up required        |
-| SCL                             | GPIO19        | I2C Clock         | Pull-up required        |
-| VCC                             | 3.3V          | Power             |                         |
-| GND                             | GND           | Ground            |                         |
-| **DS18B20 Temperature Sensors** |               |                   |                         |
-| Data                            | GPIO32        | OneWire Data      | Requires 10kΩ pull-up   |
-| VCC                             | 3.3V          | Power             | Can use parasitic power |
-| GND                             | GND           | Ground            |                         |
-| **Pull-up Resistor**            |               |                   |                         |
-| 10kΩ                            | GPIO32 ↔ 3.3V | OneWire Pull-up   | Essential for DS18B20   |
-| **DS18B20 Temperature Sensors** |               |                   |                         |
-| Data                            | GPIO11        | OneWire Data      | Requires 10kΩ pull-up   |
-| VCC                             | 3.3V          | Power             | Can use parasitic power |
-| GND                             | GND           | Ground            |                         |
-| **External Fan**                |               |                   |                         |
-| Control                         | GPIO21        | Digital Output    | Drive relay/MOSFET      |
-| **Pull-up Resistor**            |               |                   |                         |
-| 10kΩ                            | GPIO11 ↔ 3.3V | OneWire Pull-up   | Essential for DS18B20   |
+| Component                       | ESP32 Pin     | Function        | Notes                   |
+| ------------------------------- | ------------- | --------------- | ----------------------- |
+| **SHT31 Sensor**                |               |                 |                         |
+| SDA                             | GPIO21        | I2C Data        | Pull-up required        |
+| SCL                             | GPIO19        | I2C Clock       | Pull-up required        |
+| VCC                             | 3.3V          | Power           |                         |
+| GND                             | GND           | Ground          |                         |
+| **DS18B20 Temperature Sensors** |               |                 |                         |
+| Data                            | GPIO32        | OneWire Data    | Requires 10kΩ pull-up   |
+| VCC                             | 3.3V          | Power           | Can use parasitic power |
+| GND                             | GND           | Ground          |                         |
+| **Pull-up Resistor**            |               |                 |                         |
+| 10kΩ                            | GPIO32 ↔ 3.3V | OneWire Pull-up | Essential for DS18B20   |
+| **DS18B20 Temperature Sensors** |               |                 |                         |
+| Data                            | GPIO11        | OneWire Data    | Requires 10kΩ pull-up   |
+| VCC                             | 3.3V          | Power           | Can use parasitic power |
+| GND                             | GND           | Ground          |                         |
+| **External Fan**                |               |                 |                         |
+| Control                         | GPIO21        | Digital Output  | Drive relay/MOSFET      |
+| **Pull-up Resistor**            |               |                 |                         |
+| 10kΩ                            | GPIO11 ↔ 3.3V | OneWire Pull-up | Essential for DS18B20   |
 
 ## 🔌 Connector Types
 
@@ -227,15 +227,17 @@ This project features comprehensive **ESPHome** integration with Home Assistant 
 ### Display Features
 
 #### AMOLED Display (Primary)
+
 - **Real-time UV monitoring** - Color-coded UV index display
 - **Ambient light readings** - Lux measurements
 - **Distance measurements** - Water level monitoring
 - **Status indicators** - System health and connectivity
 
-#### LCD Display (Secondary) 
+#### LCD Display (Secondary)
+
 - **Animated status indicators** - Real-time visual feedback
   - Wind animation when fan is active
-  - Diagonal raindrops when mister is active  
+  - Diagonal raindrops when mister is active
   - Sweeping fog clouds when fogger is active
 - **Temperature color coding** - Instant visual temperature assessment
   - 🟠 Amber: Under 27°C (too cool)
@@ -246,31 +248,34 @@ This project features comprehensive **ESPHome** integration with Home Assistant 
 
 ## 📊 Sensor Specifications
 
-| Sensor            | Range           | Accuracy    | Update Rate | Location |
-| ----------------- | --------------- | ----------- | ----------- | -------- |
-| SHT31 Temperature | -40°C to +125°C | ±0.3°C      | 1 second    | Sensor Unit |
-| SHT31 Humidity    | 0-100% RH       | ±2% RH      | 1 second    | Sensor Unit |
-| DS18B20 Basking   | -55°C to +125°C | ±0.5°C      | 5 seconds   | Sensor Unit |
-| DS18B20 Substrate | -55°C to +125°C | ±0.5°C      | 5 seconds   | Sensor Unit |
-| LTR390 UV Index   | 0-11+ UV Index  | ±10%        | 1 second    | AMOLED Unit |
-| LTR390 Light      | 0-65535 lux     | ±10%        | 1 second    | AMOLED Unit |
-| HC-SR04 Distance  | 2-400 cm        | ±3mm        | 2 seconds   | AMOLED Unit |
+| Sensor            | Range           | Accuracy | Update Rate | Location    |
+| ----------------- | --------------- | -------- | ----------- | ----------- |
+| SHT31 Temperature | -40°C to +125°C | ±0.3°C   | 1 second    | Sensor Unit |
+| SHT31 Humidity    | 0-100% RH       | ±2% RH   | 1 second    | Sensor Unit |
+| DS18B20 Basking   | -55°C to +125°C | ±0.5°C   | 5 seconds   | Sensor Unit |
+| DS18B20 Substrate | -55°C to +125°C | ±0.5°C   | 5 seconds   | Sensor Unit |
+| LTR390 UV Index   | 0-11+ UV Index  | ±10%     | 1 second    | AMOLED Unit |
+| LTR390 Light      | 0-65535 lux     | ±10%     | 1 second    | AMOLED Unit |
+| HC-SR04 Distance  | 2-400 cm        | ±3mm     | 2 seconds   | AMOLED Unit |
 
 ## 🔧 ESPHome Configuration Files
 
 The project includes multiple configuration files:
 
 ### Primary Configurations
+
 - **`esp_display_AMOLED.yml`** - ESP32-S3 AMOLED unit with LTR390 and HC-SR04
 - **`esp_display_LCD.yaml`** - ESP32-S3 LCD unit with animated status display
 - **`sensor_unit.yaml`** - ESP32 sensor unit with SHT31 and DS18B20 sensors
 
 ### Home Assistant Integration
+
 - **`broadlink.yml`** - Broadlink RM Mini 3 IR blaster configuration
 - **`scripts.yaml`** - TerraSky lighting control scripts
 - **`automation.yml`** - Environmental control automations
 
 ### Key Features in Configurations
+
 ```yaml
 # LTR390 UV/Light Sensor (I2C - eliminates WiFi interference)
 sensor:
@@ -297,7 +302,7 @@ sensor:
   - platform: dallas_temp
     address: 0xe28a447c1f64ff28  # Substrate probe
     update_interval: 5s
-  - platform: dallas_temp  
+  - platform: dallas_temp
     address: 0x74057c7c1f64ff28  # Basking probe
     update_interval: 5s
 ```
@@ -356,19 +361,21 @@ Fan Control: GPIO21 (Digital Output)
 ✅ **Fast Sensor Updates** - Responsive 1-5 second update intervals  
 ✅ **Automatic Discovery** - Sensors appear in Home Assistant automatically  
 ✅ **State Tracking** - Complete system status monitoring  
-✅ **IR Remote Learning** - Broadlink integration for lighting control  
+✅ **IR Remote Learning** - Broadlink integration for lighting control
 
 ## System Architecture
 
 ### Three-Unit Design
 
 1. **ESP32-S3 AMOLED Unit** (Primary)
+
    - UV/Light monitoring with LTR390
    - Water level monitoring with HC-SR04
    - High-resolution environmental data display
    - WiFi enabled for real-time updates
 
-2. **ESP32-S3 LCD Unit** (Secondary) 
+2. **ESP32-S3 LCD Unit** (Secondary)
+
    - Animated status display for all systems
    - Temperature color coding for quick assessment
    - Real-time visual feedback (wind, rain, fog animations)
