@@ -69,6 +69,9 @@ sensor:
   - platform: homeassistant
     id: base_temp
     entity_id: sensor.vivariumsensors_substrate_temperature
+  - platform: homeassistant
+    id: pid_setpoint
+    entity_id: number.vivarium_pid_setpoint
 
 text_sensor:
   - platform: homeassistant
@@ -110,32 +113,27 @@ display:
       it.printf(75, 122, id(Roboto_14), Color(255, 255, 255), "°C");
       it.printf(75, 180, id(Roboto_14), Color(255, 255, 255), "°C");
 
-      // Temperature readings with color coding based on ranges
-      // Basking temp: <27=amber, 27-28=green, >28=red
-      Color bask_color = Color(255, 130, 0); // amber default
-      if (id(bask_temp).state >= 27 && id(bask_temp).state <= 28) {
-        bask_color = Color(76, 175, 80); // green
-      } else if (id(bask_temp).state > 28) {
-        bask_color = Color(233, 30, 99); // red
+      // Temperature readings with color coding based on PID setpoint
+      // Basking temp: >=setpoint=green, 1-3° below=amber, >3° below=red
+      Color bask_color = Color(233, 30, 99); // red default
+      if (id(pid_setpoint).has_state()) {
+        float setpoint = id(pid_setpoint).state;
+        float temp_diff = id(bask_temp).state - setpoint - 1;
+        if (temp_diff >= 0) {
+          bask_color = Color(76, 175, 80); // green - at or above setpoint
+        } else if (temp_diff >= -3.0) {
+          bask_color = Color(255, 130, 0); // amber - 1-3 degrees below
+        }
+        // else stays red for more than 3 degrees below
       }
       it.printf(14, 60, id(Roboto_30), bask_color, "%.1f", id(bask_temp).state);
       
-      // Middle temp: <27=amber, 27-28=green, >28=red
-      Color mid_color = Color(255, 130, 0); // amber default
-      if (id(mid_temp).state >= 27 && id(mid_temp).state <= 28) {
-        mid_color = Color(76, 175, 80); // green
-      } else if (id(mid_temp).state > 28) {
-        mid_color = Color(233, 30, 99); // red
-      }
+      // Middle temp: always green
+      Color mid_color = Color(76, 175, 80); // green
       it.printf(14, 117, id(Roboto_30), mid_color, "%.1f", id(mid_temp).state);
       
-      // Base temp: <27=amber, 27-28=green, >28=red
-      Color base_color = Color(255, 130, 0); // amber default
-      if (id(base_temp).state >= 27 && id(base_temp).state <= 28) {
-        base_color = Color(76, 175, 80); // green
-      } else if (id(base_temp).state > 28) {
-        base_color = Color(233, 30, 99); // red
-      }
+      // Base temp: always green
+      Color base_color = Color(76, 175, 80); // green
       it.printf(14, 175, id(Roboto_30), base_color, "%.1f", id(base_temp).state);
       
       // Show moon graphic only when lighting status contains "Moon"
