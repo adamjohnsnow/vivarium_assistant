@@ -5,25 +5,6 @@ esphome:
   name_add_mac_suffix: false
   platformio_options:
     board_build.flash_size: 16MB
-  on_boot:
-    priority: 600
-    then:
-      - logger.log: "ESP32 booted successfully"
-      - logger.log: "LTR390 UV/Light sensor on I2C (SDA:21, SCL:20) initializing..."
-      - logger.log: "HC-SR04 sensor on GPIO10(trigger)/GPIO11(echo) initializing..."
-      - delay: 3s
-      - logger.log: "Boot sequence complete"
-      - logger.log: "WiFi + I2C sensors ready"
-      - logger.log: "Starting I2C device scan..."
-      - lambda: |-
-          ESP_LOGI("i2c_scan", "Scanning I2C bus for devices...");
-          auto i2c_bus = id(bus_a);
-          for (uint8_t address = 8; address < 120; address++) {
-            if (i2c_bus->write(address, nullptr, 0) == i2c::ERROR_OK) {
-              ESP_LOGI("i2c_scan", "Found I2C device at address 0x%02X", address);
-            }
-          }
-          ESP_LOGI("i2c_scan", "I2C scan complete");
 
 esp32:
   board: esp32-s3-devkitc-1
@@ -32,12 +13,6 @@ esp32:
 
 # Enable logging
 logger:
-  level: DEBUG  # Enable debug logging to see OneWire device discovery
-  logs:
-    adc: DEBUG
-    sensor: DEBUG
-    component: DEBUG
-    ultrasonic.sensor: DEBUG
 
 # Home Assistant API disabled when WiFi is off
 api:
@@ -60,87 +35,6 @@ spi:
   clk_pin: 47
   data_pins: [18, 7, 48, 5]
 
-# I2C for LTR390 UV/Light sensor
-i2c:
-  sda: 21
-  scl: 20
-  scan: true
-  id: bus_a
-
-# LTR390 sensor
-sensor:
-  # LTR390 UV and Ambient Light Sensor (I2C - no WiFi interference)
-  - platform: ltr390
-    address: 0x53
-    uv_index:
-      name: "UV Index"
-      id: uv_index
-      accuracy_decimals: 2
-      on_value:
-        then:
-          - logger.log:
-              format: "UV Index updated: %.2f"
-              args: ['x']
-    uv:
-      name: "UV"
-      id: uv_raw
-      accuracy_decimals: 0
-      on_value:
-        then:
-          - logger.log:
-              format: "UV Raw value: %.0f"
-              args: ['x']
-    light:
-      name: "Light"
-      id: ambient_light
-      accuracy_decimals: 0
-      on_value:
-        then:
-          - logger.log:
-              format: "Ambient Light: %.0f lux"
-              args: ['x']
-    gain: X3
-    resolution: 18
-    update_interval: 1s
-
-  # HC-SR04 Ultrasonic Distance Sensor
-  - platform: ultrasonic
-    trigger_pin: GPIO10
-    echo_pin: GPIO11
-    name: "Distance"
-    id: distance_sensor
-    update_interval: 1s
-    timeout: 4m
-    pulse_time: 10us  # Explicit trigger pulse time
-    unit_of_measurement: "cm"
-    accuracy_decimals: 1
-    filters:
-      - filter_out: nan
-      - lambda: |-
-          ESP_LOGD("distance_sensor", "Raw distance reading: %.2f cm", x);
-          if (isnan(x)) {
-            ESP_LOGW("distance_sensor", "Distance reading is NaN (sensor timeout)");
-            return {};
-          }
-          // Convert from meters to centimeters (ESPHome returns meters)
-          float cm_value = x * 100.0;
-          if (cm_value < 2.0) {
-            ESP_LOGW("distance_sensor", "Distance too close: %.2f cm (minimum ~2cm)", cm_value);
-          }
-          if (cm_value > 400.0) {
-            ESP_LOGW("distance_sensor", "Distance too far: %.2f cm (maximum ~400cm)", cm_value);
-          }
-          ESP_LOGI("distance_sensor", "Valid distance: %.2f cm", cm_value);
-          return cm_value;
-      - median:
-          window_size: 3  # Reduced window size
-          send_every: 2
-    on_value:
-      then:
-        # - logger.log:
-        #     format: "Distance sensor updated: %.2f cm"
-        #     args: ['x']
-
 display:
   - platform: qspi_dbi
     id: my_display
@@ -148,71 +42,136 @@ display:
     dimensions:
       height: 400
       width: 240
+      offset_height: 136
     brightness: 200
-    rotation: 270
+    rotation: 90
     cs_pin: 6
     reset_pin: 17
     enable_pin: 38
     lambda: |-
-      // Title
-      it.printf(15, 8, id(font_medium), Color(255,255,0), "VIRTUAL CHAMELEON");
-
-      // UV Index Section (LTR390)
-      it.printf(25, 50, id(font_small), Color(255,255,255), "UV Index:");
-      if (id(uv_index).has_state()) {
-        float uv_val = id(uv_index).state;
-        if (isnan(uv_val)) {
-          it.printf(25, 70, id(font_medium), Color(255,100,100), "NaN Error");
-        } else if (uv_val < 3.0) {
-          it.printf(25, 70, id(font_medium), Color(0,200,0), "%.2f (Low)", uv_val);
-        } else if (uv_val < 6.0) {
-          it.printf(25, 70, id(font_medium), Color(255,200,0), "%.2f (Moderate)", uv_val);
-        } else if (uv_val < 8.0) {
-          it.printf(25, 70, id(font_medium), Color(255,100,0), "%.2f (High)", uv_val);
-        } else {
-          it.printf(25, 70, id(font_medium), Color(255,0,0), "%.2f (Very High)", uv_val);
-        }
-      } else {
-        it.printf(25, 70, id(font_medium), Color(255,100,100), "No Data");
-      }
-
-      it.printf(145, 50, id(font_small), Color(255,255,255), "UV:");
-      if (id(uv_index).has_state()) {
-        float uv_val = id(uv_index).state;
-        if (isnan(uv_val)) {
-          it.printf(145, 70, id(font_medium), Color(255,100,100), "NaN Error");
-        } else {
-          it.printf(145, 70, id(font_medium), Color(255,0,0), "%.2f", uv_raw);
-        }
-      } else {
-        it.printf(145, 70, id(font_medium), Color(255,100,100), "No Data");
-      }
-
+      // Define colors
+      auto color_black = Color(0, 0, 0);
+      auto color_white = Color(255, 255, 255);
+      auto color_red = Color(255, 0, 0);
+      auto color_blue = Color(0, 150, 255);
+      auto color_green = Color(100, 255, 100);
+      auto color_orange = Color(255, 140, 0);
       
-      // Ambient Light Section
-      it.printf(25, 110, id(font_small), Color(255,255,255), "Light:");
-      if (id(ambient_light).has_state()) {
-        it.printf(25, 130, id(font_medium), Color(200,200,0), "%.0f lux", id(ambient_light).state);
-      } else {
-        it.printf(25, 130, id(font_medium), Color(255,100,100), "No Data");
+      // Clear screen
+      it.fill(color_black);
+      
+      // Get sensor states from Home Assistant
+      float humidity = 0;
+      float heat_output = 0;
+      bool tank_high = false;
+      bool tank_low = false;
+      
+      if (id(humidity_sensor).has_state()) {
+        humidity = id(humidity_sensor).state;
+      }
+      if (id(heat_output_sensor).has_state()) {
+        heat_output = (id(heat_output_sensor).state / 255.0) * 100.0; // Convert brightness (0-255) to percentage (0-100)
+      }
+      if (id(tank_high_sensor).has_state()) {
+        tank_high = id(tank_high_sensor).state;
+      }
+      if (id(tank_low_sensor).has_state()) {
+        tank_low = id(tank_low_sensor).state;
       }
       
-      // Distance Sensor Section
-      it.printf(25, 170, id(font_small), Color(255,255,255), "Distance:");
-      if (id(distance_sensor).has_state()) {
-        float dist_val = id(distance_sensor).state;
-        if (isnan(dist_val)) {
-          it.printf(25, 190, id(font_medium), Color(255,100,100), "Timeout/NaN");
-        } else if (dist_val < 2.0) {
-          it.printf(25, 190, id(font_medium), Color(255,150,0), "%.1f cm (Too Close)", dist_val);
-        } else if (dist_val > 400.0) {
-          it.printf(25, 190, id(font_medium), Color(255,150,0), "%.1f cm (Too Far)", dist_val);
-        } else {
-          it.printf(25, 190, id(font_medium), Color(0,150,255), "%.1f cm", dist_val);
-        }
-      } else {
-        it.printf(25, 190, id(font_medium), Color(255,100,100), "No Echo Signal");
+      // Calculate mister fill percentage and color
+      float mister_fill = 0.05; // Default 5%
+      Color mister_color = color_red;
+      
+      if (tank_high) {
+        mister_fill = 1.0; // 100%
+        mister_color = color_blue;
+      } else if (tank_low) {
+        mister_fill = 0.5; // 50%
+        mister_color = color_blue;
       }
+      
+      // Draw MISTER bar (top)
+      int bar_y = 20;
+      int bar_width = 300;
+      int bar_height = 60;
+      int bar_x = 0;
+      
+      // White outline
+      it.rectangle(bar_x, bar_y, bar_width, bar_height, color_white);
+      it.rectangle(bar_x + 1, bar_y + 1, bar_width - 2, bar_height - 2, color_white);
+      
+      // Fill bar based on tank levels
+      int fill_width = (int)((bar_width - 4) * mister_fill);
+      if (fill_width > 0) {
+        it.filled_rectangle(bar_x + 2, bar_y + 2, fill_width, bar_height - 4, mister_color);
+      }
+      
+      // Label
+      it.print(bar_x + bar_width + 20, bar_y + 20, id(font_medium), color_white, "TANK");
+      
+      // Draw HUMIDITY bar (middle)
+      bar_y = bar_y + 80;
+      
+      // White outline
+      it.rectangle(bar_x, bar_y, bar_width, bar_height, color_white);
+      it.rectangle(bar_x + 1, bar_y + 1, bar_width - 2, bar_height - 2, color_white);
+      
+      // Fill bar based on humidity percentage
+      fill_width = (int)((bar_width - 4) * (humidity / 100.0));
+      if (fill_width > 0) {
+        it.filled_rectangle(bar_x + 2, bar_y + 2, fill_width, bar_height - 4, color_green);
+      }
+      it.printf(bar_x + 20, bar_y + 13, id(font_bold), color_black, "%.0f", humidity);
+      
+      // Label
+      it.print(bar_x + bar_width + 20, bar_y + 20, id(font_medium), color_white, "HUM");
+      
+      // Draw HEAT bar (bottom)
+      bar_y = bar_y + 80;
+
+      // White outline
+      it.rectangle(bar_x, bar_y, bar_width, bar_height, color_white);
+      it.rectangle(bar_x + 1, bar_y + 1, bar_width - 2, bar_height - 2, color_white);
+      
+      // Fill bar based on heat output percentage
+      fill_width = (int)((bar_width - 4) * (heat_output / 100.0));
+      if (fill_width > 0) {
+        it.filled_rectangle(bar_x + 2, bar_y + 2, fill_width, bar_height - 4, color_orange);
+      }
+
+      it.printf(bar_x + 20, bar_y + 13, id(font_bold), color_black, "%.0f", heat_output);
+
+      // Label
+      it.print(bar_x + bar_width + 20, bar_y + 20, id(font_medium), color_white, "HEAT");
+
+# Home Assistant sensors
+sensor:
+  - platform: homeassistant
+    id: humidity_sensor
+    entity_id: sensor.vivariumsensors_humidity
+    internal: true
+  - platform: homeassistant
+    id: heat_output_sensor
+    entity_id: light.heat_lamp_power
+    attribute: brightness
+    internal: true
+
+binary_sensor:
+  - platform: homeassistant
+    id: tank_high_sensor
+    entity_id: binary_sensor.vivariumsensors_tank_high_level
+    internal: true
+  - platform: homeassistant
+    id: tank_low_sensor
+    entity_id: binary_sensor.vivariumsensors_tank_low_level
+    internal: true
+
+# Update display every 2 seconds
+interval:
+  - interval: 2s
+    then:
+      - component.update: my_display
 
 # Fonts
 font:
@@ -225,3 +184,6 @@ font:
   - file: "gfonts://Roboto"
     id: font_header
     size: 45
+  - file: "gfonts://Roboto@900"
+    id: font_bold
+    size: 30
